@@ -2,3 +2,12 @@ node_modules
 src/**/*.js
 src/**/*.map
 coverage
+.DS_Store
+
+gifs/
+
+tmp/
+
+*.zip
+
+*.gif
