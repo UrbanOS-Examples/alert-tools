@@ -1,0 +1,17 @@
+{
+    "event": "update",
+    "payload": {
+        "average": 32,
+        "c-Value": 90,
+        "code": "137593400",
+        "ingestion": "2021-08-19T19:42:00.100317Z",
+        "reference": 34,
+        "score": 30,
+        "speed": 34,
+        "speedBucket": 3,
+        "travelTimeMinutes": 1.15,
+        "type": "XDS"
+    },
+    "ref": null,
+    "topic": "streaming:inrix__inrix_traffic_speed_data"
+}
