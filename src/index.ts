@@ -11,6 +11,7 @@ import fetch from 'node-fetch';
 const FUNCTIONAL_CLASS_RANGE = [3, 5];
 const SIG_THRESH = 0.7;
 const CAM_DIST = 0.1;
+const EXPORT_FILE = 'export_satMorning_GifV2.json';
 
 const codeMap = codeList.reduce((map, obj) => {
     const classNum = parseInt(obj.fclass);
@@ -22,7 +23,7 @@ const codeMap = codeList.reduce((map, obj) => {
     return map;
 }, {} as any);
 
-const stream = fs.createWriteStream('export_fridayNight_GifV1.json', {
+const stream = fs.createWriteStream(EXPORT_FILE, {
     flags: 'a',
 });
 
@@ -136,6 +137,7 @@ ws.on('message', function incoming(msg) {
                     .map((file) => `./tmp/${file}`);
                 filesToGif(files, gifName);
             }, 31000);
+
             // generate file name for gif, place that in alert, write / log alert
             // that interval saves an image
             // once the interval is completed, images are saved to a gif
@@ -165,12 +167,10 @@ const filesToGif = (images: string[], gifFileName: string) => {
 const addToGif = function (gif, images, counter = 0) {
     getPixels(images[counter], function (err, pixels) {
         gif.addFrame(pixels.data);
+        // @ts-ignore
+        fs.unlinkSync(images[counter]);
         if (counter === images.length - 1) {
             gif.finish();
-            // @ts-ignore
-            images.forEach((file) => {
-                fs.unlinkSync(file);
-            });
         } else {
             addToGif(gif, images, ++counter);
         }
