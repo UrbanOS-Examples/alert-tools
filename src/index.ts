@@ -1,17 +1,20 @@
 import WebSocket from 'ws';
 import codeList from './2_codeToLatLong.json';
-import cameraList from './cameraData.json';
+// import cameraList from './cameraData.json';
+import camAndIntList from './cameras_and_intersections_v2.json';
 import * as turf from '@turf/turf';
 import GIFEncoder from 'gifencoder';
 import getPixels from 'get-pixels';
 import * as fs from 'fs';
 import { imageSize } from 'image-size';
 import fetch from 'node-fetch';
+import moment from 'moment';
 
 const FUNCTIONAL_CLASS_RANGE = [3, 5];
 const SIG_THRESH = 0.7;
 const CAM_DIST = 0.1;
-const EXPORT_FILE = 'export_satMorning_GifV2.json';
+const EXPORT_FILE = 'wan_meeting.json';
+let lastAlert = moment();
 
 const codeMap = codeList.reduce((map, obj) => {
     const classNum = parseInt(obj.fclass);
@@ -42,7 +45,7 @@ const ws = new WebSocket(
 );
 
 ws.on('open', function open() {
-    console.log('Connected');
+    log('Connected');
     ws.send(
         JSON.stringify({
             topic: 'streaming:inrix__inrix_traffic_speed_data',
@@ -51,6 +54,7 @@ ws.on('open', function open() {
             ref: '1',
         }),
     );
+    log('Listening for alerts');
 });
 
 // Type as inrix event
@@ -63,37 +67,46 @@ const calcSig = (speed: number, avg: number) => 1 - speed / avg;
 const getDistanceInMetersFromCamera = (segment: any, camera: any): number =>
     turf.distance(segment, camera, { units: 'kilometers' });
 
-const getClosestCamera = (segment: any, thresholdMiles: number) => {
-    let closestCam: {
-        image: string;
-        latitude: string;
-        location: string;
-        longitude: string;
+const getClosestInter = (segment: any, thresholdMiles: number) => {
+    let closestInter: {
+        camera_description: string;
+        camera_image: string;
+        camera_lat: string;
+        camera_lon: string;
+        cm_pwrsrc: string;
+        signal_lat: number;
+        signal_lon: number;
         distance: number;
     } | null = null;
-    cameraList.forEach((cam) => {
+    camAndIntList.forEach((inter) => {
         const distance = getDistanceInMetersFromCamera(
             segment,
-            turf.point([parseFloat(cam.latitude), parseFloat(cam.longitude)]),
+            turf.point([inter.signal_lat, inter.signal_lon]),
         );
-        if (distance <= thresholdMiles) closestCam = { ...cam, distance };
+        if (distance <= thresholdMiles) closestInter = { ...inter, distance };
     });
-    return closestCam;
+    return closestInter;
 };
+
+const lastAlertMsg = setInterval(() => {
+    log(`No Alerts Since ${lastAlert.format('hh:mm:ss')}`);
+}, 30000);
 
 ws.on('message', function incoming(msg) {
     // process.stdout.write('.');
     const parsedMsg = JSON.parse(msg.toString());
     const map = codeMap[parsedMsg.payload.code as string];
     if (isSig(parsedMsg) && map) {
-        const closestCam = getClosestCamera(
+        const closestInter = getClosestInter(
             turf.point([parseFloat(map.lat), parseFloat(map.lon)]),
             CAM_DIST,
         );
 
-        if (closestCam) {
-            const gifName = `${map.code}_${Date.now()}.gif`;
-            const alert = JSON.stringify({
+        if (closestInter) {
+            const id = `${map.code}_${Date.now()}`;
+            const gifName = `${id}.gif`;
+            const alert = {
+                id,
                 lat: map.lat,
                 long: map.lon,
                 sig: calcSig(
@@ -107,36 +120,35 @@ ws.on('message', function incoming(msg) {
                 functional_class: map.fclass,
                 road_name: map.name,
                 code: map.code,
-                cam_name: closestCam?.location,
-                cam_img: closestCam?.image,
-                cam_distance: closestCam?.distance,
-                cam_gif: gifName,
-            });
-            console.log(alert + '\n');
+                ...closestInter,
+                cam_gif: closestInter.camera_image ? gifName : null,
+            };
 
-            const interval = setInterval(async () => {
-                console.log(`fetching the img for: ${map.code}`);
-                const response = await fetch(closestCam.image);
-                const buffer = await response.buffer();
-                await fs.writeFile(
-                    `./tmp/${map.code}_${Date.now()}.jpg`,
-                    buffer,
-                    (err) => {
-                        if (err) console.error('Err Writing Img:', err);
-                        else console.log('finished downloading');
-                    },
-                );
-            }, 5000);
+            if (closestInter.camera_image) {
+                const interval = setInterval(async () => {
+                    // log(`fetching the img for: ${map.code}`);
+                    const response = await fetch(closestInter.camera_image);
+                    const buffer = await response.buffer();
+                    await fs.writeFile(
+                        `./tmp/${map.code}_${Date.now()}.jpg`,
+                        buffer,
+                        (err) => {
+                            if (err) console.error('Err Writing Img:', err);
+                            // else log('finished downloading');
+                        },
+                    );
+                }, 5000);
 
-            setTimeout(() => {
-                console.log(`clearing img fetch for: ${map.code}`);
-                clearInterval(interval);
-                const files = fs
-                    .readdirSync('./tmp')
-                    .filter((fn) => fn.includes(map.code))
-                    .map((file) => `./tmp/${file}`);
-                filesToGif(files, gifName);
-            }, 31000);
+                setTimeout(() => {
+                    // log(`clearing img fetch for: ${map.code}`);
+                    clearInterval(interval);
+                    const files = fs
+                        .readdirSync('./tmp')
+                        .filter((fn) => fn.includes(map.code))
+                        .map((file) => `./tmp/${file}`);
+                    filesToGif(files, gifName);
+                }, 31000);
+            }
 
             // generate file name for gif, place that in alert, write / log alert
             // that interval saves an image
@@ -144,7 +156,12 @@ ws.on('message', function incoming(msg) {
             //   with the previously determined name
             // source images are deleted
 
-            stream.write(alert);
+            lastAlert = moment();
+            log(
+                `Alert Triggered:\nRoad Name: ${alert.road_name}\nCamera: ${alert.cm_pwrsrc}\nid:${alert.id}\n`,
+            );
+            // log(alert)
+            stream.write(JSON.stringify(alert));
         }
     }
 });
@@ -178,15 +195,21 @@ const addToGif = function (gif, images, counter = 0) {
 };
 
 ws.on('close', () => {
-    console.log('\nclose');
+    log('\nSocket was closed, please restart the program');
 });
 
-ws.on('error', () => {
-    console.log('\nerror');
+ws.on('error', (err) => {
+    console.log('\nerror: ', err);
+    log('Consider restarting the program');
 });
 
 setInterval(() => {
-    console.log('\nstill goin');
+    // log('\nstill goin');
     // ping the socket so the connection doesn't die
     ws.ping("i'm still here");
 }, 5000);
+
+const log = (msg: string): void => {
+    const time = moment();
+    console.log(`[${time.format('hh:mm:ss')}] ${msg}`);
+};
