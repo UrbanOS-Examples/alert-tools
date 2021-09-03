@@ -8,6 +8,8 @@ gifs/
 
 tmp/
 
+pkg_dist
+
 *.zip
 
 *.gif

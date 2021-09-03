@@ -12,9 +12,10 @@ import moment from 'moment';
 
 const FUNCTIONAL_CLASS_RANGE = [3, 5];
 const SIG_THRESH = 0.7;
-const CAM_DIST = 0.1;
-const EXPORT_FILE = 'wan_meeting.json';
+const CAM_DIST = 10;
+const EXPORT_FILE = 'wan_meeting_red_v1.json';
 let lastAlert = moment();
+let lastInrix = moment();
 
 const codeMap = codeList.reduce((map, obj) => {
     const classNum = parseInt(obj.fclass);
@@ -31,7 +32,10 @@ const stream = fs.createWriteStream(EXPORT_FILE, {
 });
 
 process.on('uncaughtException', function (err) {
+    console.log('------------------------------------');
+    log('There was an error, you should probably restart the program');
     console.error(err.stack);
+    console.log('------------------------------------');
 });
 
 const ws = new WebSocket(
@@ -89,11 +93,16 @@ const getClosestInter = (segment: any, thresholdMiles: number) => {
 };
 
 const lastAlertMsg = setInterval(() => {
-    log(`No Alerts Since ${lastAlert.format('hh:mm:ss')}`);
+    log(
+        `No Alerts Since ${lastAlert.format(
+            'hh:mm:ss',
+        )} No Inrix Since ${lastInrix.format('hh:mm:ss')}`,
+    );
 }, 30000);
 
 ws.on('message', function incoming(msg) {
     // process.stdout.write('.');
+    lastInrix = moment();
     const parsedMsg = JSON.parse(msg.toString());
     const map = codeMap[parsedMsg.payload.code as string];
     if (isSig(parsedMsg) && map) {
@@ -124,7 +133,15 @@ ws.on('message', function incoming(msg) {
                 cam_gif: closestInter.camera_image ? gifName : null,
             };
 
+            lastAlert = moment();
+            log(
+                `Alert Triggered:\nRoad Name: ${alert.road_name}\nCamera: ${alert.cm_pwrsrc}\nid:${alert.id}`,
+            );
+            // log(alert)
+            stream.write(JSON.stringify(alert));
+
             if (closestInter.camera_image) {
+                log('Saving img for alert\n');
                 const interval = setInterval(async () => {
                     // log(`fetching the img for: ${map.code}`);
                     const response = await fetch(closestInter.camera_image);
@@ -137,6 +154,7 @@ ws.on('message', function incoming(msg) {
                             // else log('finished downloading');
                         },
                     );
+                    // log(`Write to: ./tmp/${map.code}_${Date.now()}.jpg`);
                 }, 5000);
 
                 setTimeout(() => {
@@ -148,6 +166,10 @@ ws.on('message', function incoming(msg) {
                         .map((file) => `./tmp/${file}`);
                     filesToGif(files, gifName);
                 }, 31000);
+            } else {
+                log(
+                    'No img for alert. Operator might not be able to determine.\n',
+                );
             }
 
             // generate file name for gif, place that in alert, write / log alert
@@ -155,13 +177,6 @@ ws.on('message', function incoming(msg) {
             // once the interval is completed, images are saved to a gif
             //   with the previously determined name
             // source images are deleted
-
-            lastAlert = moment();
-            log(
-                `Alert Triggered:\nRoad Name: ${alert.road_name}\nCamera: ${alert.cm_pwrsrc}\nid:${alert.id}\n`,
-            );
-            // log(alert)
-            stream.write(JSON.stringify(alert));
         }
     }
 });
@@ -195,12 +210,16 @@ const addToGif = function (gif, images, counter = 0) {
 };
 
 ws.on('close', () => {
+    console.log('------------------------------------');
     log('\nSocket was closed, please restart the program');
+    console.log('------------------------------------');
 });
 
 ws.on('error', (err) => {
+    console.log('------------------------------------');
+    log('There was an error, you should probably restart the program');
     console.log('\nerror: ', err);
-    log('Consider restarting the program');
+    console.log('------------------------------------');
 });
 
 setInterval(() => {

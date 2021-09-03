@@ -1,4 +1,4 @@
-import data from './export_weekdays.json';
+import data from './demo_50_no_tag_no_condense.json';
 import moment from 'moment';
 import * as fs from 'fs';
 
@@ -78,7 +78,4 @@ data.forEach((alert, i) => {
 // export condensed alerts
 console.log('Alerts pre condense:', data.length);
 console.log('Alerts post condense:', condensedAlerts.length);
-fs.writeFileSync(
-    'export_condensed_weekdays.json',
-    JSON.stringify(condensedAlerts),
-);
+fs.writeFileSync('demo_50_no_tag.json', JSON.stringify(condensedAlerts));
