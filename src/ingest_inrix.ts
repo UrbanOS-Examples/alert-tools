@@ -17,8 +17,38 @@ index.ts to utilize. index.ts doesn't know it's not coming from urban os
 - print "done pushing x entries to endpoint"
 */
 
+/*
+Requires 
+export VENDORID=
+export CONSUMERID=
+
+Ben has these or they're in staging vault
+*/
+
 import { log } from './shared';
+import fetch from 'node-fetch';
 
-const getToken = (): string => 'test';
+const tokenURL = `http://na.api.inrix.com/Traffic/Inrix.ashx?Action=GetSecurityToken&Vendorid=${process.env.VENDORID}&Consumerid=${process.env.CONSUMERID}&format=json`;
 
-log(getToken());
+let token = '';
+
+const getToken = async () => {
+    const r = await fetch(tokenURL);
+    const j = await r.json();
+    return j.result.token;
+};
+
+const main = async () => {
+    log('Starting up the mock urban os!');
+
+    // Get a new token to use for requesting inrix data every 30 minutes
+    setInterval(async () => {
+        token = await getToken();
+        log('New token set');
+    }, 30 * 60000);
+};
+
+// Done this way so that it gets around top level await
+main()
+    .then(() => {})
+    .catch((err) => log('ERR:' + err));
