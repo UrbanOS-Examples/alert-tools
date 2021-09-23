@@ -27,6 +27,8 @@ Ben has these or they're in staging vault
 
 import { log } from './shared';
 import fetch from 'node-fetch';
+// @ts-ignore
+import { WebSocketServer } from 'ws';
 
 const tokenURL = `http://na.api.inrix.com/Traffic/Inrix.ashx?Action=GetSecurityToken&Vendorid=${process.env.VENDORID}&Consumerid=${process.env.CONSUMERID}&format=json`;
 
@@ -45,7 +47,16 @@ const main = async () => {
     setInterval(async () => {
         token = await getToken();
         log('New token set');
-    }, 30 * 60000);
+        // }, 30 * 60000);
+    }, 10000);
+
+    const ws = new WebSocketServer({ port: 1234 });
+
+    ws.on('connection', function connection(ws: any) {
+        ws.on('message', function incoming() {
+            ws.send(token);
+        });
+    });
 };
 
 // Done this way so that it gets around top level await
