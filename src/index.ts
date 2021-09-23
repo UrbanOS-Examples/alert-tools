@@ -2,6 +2,7 @@ import WebSocket from 'ws';
 import codeList from './2_codeToLatLong.json';
 // import cameraList from './cameraData.json';
 import camAndIntList from './cameras_and_intersections_v2.json';
+import { log } from './shared';
 import * as turf from '@turf/turf';
 import GIFEncoder from 'gifencoder';
 import getPixels from 'get-pixels';
@@ -10,10 +11,22 @@ import { imageSize } from 'image-size';
 import fetch from 'node-fetch';
 import moment from 'moment';
 
+/* 
+Improvements to make
+
+- teminal prompt ask for file name to output
+  - export folder
+- ask for description (sidecar)
+- print out top level consts to description sidecar
+- print started date in sidecar
+- ask for gif capture or not
+- confirm gif / tmp directories + warn if not there
+*/
+
 const FUNCTIONAL_CLASS_RANGE = [3, 5];
 const SIG_THRESH = 0.7;
-const CAM_DIST = 10;
-const EXPORT_FILE = 'wan_meeting_red_v1.json';
+const CAM_DIST_KM = 10;
+const EXPORT_FILE = 'sep_21_410_to_600.json';
 let lastAlert = moment();
 let lastInrix = moment();
 
@@ -92,14 +105,6 @@ const getClosestInter = (segment: any, thresholdMiles: number) => {
     return closestInter;
 };
 
-const lastAlertMsg = setInterval(() => {
-    log(
-        `No Alerts Since ${lastAlert.format(
-            'hh:mm:ss',
-        )} No Inrix Since ${lastInrix.format('hh:mm:ss')}`,
-    );
-}, 30000);
-
 ws.on('message', function incoming(msg) {
     // process.stdout.write('.');
     lastInrix = moment();
@@ -108,7 +113,7 @@ ws.on('message', function incoming(msg) {
     if (isSig(parsedMsg) && map) {
         const closestInter = getClosestInter(
             turf.point([parseFloat(map.lat), parseFloat(map.lon)]),
-            CAM_DIST,
+            CAM_DIST_KM,
         );
 
         if (closestInter) {
@@ -228,7 +233,10 @@ setInterval(() => {
     ws.ping("i'm still here");
 }, 5000);
 
-const log = (msg: string): void => {
-    const time = moment();
-    console.log(`[${time.format('hh:mm:ss')}] ${msg}`);
-};
+setInterval(() => {
+    log(
+        `No Alerts Since ${lastAlert.format(
+            'hh:mm:ss',
+        )} No Inrix Since ${lastInrix.format('hh:mm:ss')}`,
+    );
+}, 30000);
