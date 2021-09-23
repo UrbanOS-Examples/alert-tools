@@ -7,6 +7,7 @@
     "scripts": {
         "start": "ts-node src/index.ts",
         "giftest": "ts-node src/giftest.ts",
+        "mock_urban_os": "ts-node src/ingest_inrix.ts",
         "test": "jest --coverage",
         "view:cov": "serve coverage/lcov-report",
         "clean": "rm -rf coverage src/**/*.js src/**/*.map",
