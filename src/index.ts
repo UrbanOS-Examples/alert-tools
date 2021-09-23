@@ -26,7 +26,7 @@ Improvements to make
 const FUNCTIONAL_CLASS_RANGE = [3, 5];
 const SIG_THRESH = 0.7;
 const CAM_DIST_KM = 10;
-const EXPORT_FILE = 'sep_21_410_to_600.json';
+const EXPORT_FILE = 'sep23rd_late_late_test.json';
 let lastAlert = moment();
 let lastInrix = moment();
 
@@ -51,15 +51,14 @@ process.on('uncaughtException', function (err) {
     console.log('------------------------------------');
 });
 
-const ws = new WebSocket(
-    'wss://streams.staging-smartos.com/socket/websocket',
-    [],
-    {
-        headers: {
-            'user-agent': 'node',
-        },
+// const ws = new WebSocket('ws://localhost:1234', [], {
+// const ws = new WebSocket('wss://streams.staging-smartos.com/socket/websocket', [], {
+
+const ws = new WebSocket('ws://localhost:1234', [], {
+    headers: {
+        'user-agent': 'node',
     },
-);
+});
 
 ws.on('open', function open() {
     log('Connected');
@@ -116,7 +115,7 @@ ws.on('message', function incoming(msg) {
             CAM_DIST_KM,
         );
 
-        if (closestInter) {
+        if (closestInter && closestInter.camera_image) {
             const id = `${map.code}_${Date.now()}`;
             const gifName = `${id}.gif`;
             const alert = {
@@ -145,37 +144,31 @@ ws.on('message', function incoming(msg) {
             // log(alert)
             stream.write(JSON.stringify(alert));
 
-            if (closestInter.camera_image) {
-                log('Saving img for alert\n');
-                const interval = setInterval(async () => {
-                    // log(`fetching the img for: ${map.code}`);
-                    const response = await fetch(closestInter.camera_image);
-                    const buffer = await response.buffer();
-                    await fs.writeFile(
-                        `./tmp/${map.code}_${Date.now()}.jpg`,
-                        buffer,
-                        (err) => {
-                            if (err) console.error('Err Writing Img:', err);
-                            // else log('finished downloading');
-                        },
-                    );
-                    // log(`Write to: ./tmp/${map.code}_${Date.now()}.jpg`);
-                }, 5000);
-
-                setTimeout(() => {
-                    // log(`clearing img fetch for: ${map.code}`);
-                    clearInterval(interval);
-                    const files = fs
-                        .readdirSync('./tmp')
-                        .filter((fn) => fn.includes(map.code))
-                        .map((file) => `./tmp/${file}`);
-                    filesToGif(files, gifName);
-                }, 31000);
-            } else {
-                log(
-                    'No img for alert. Operator might not be able to determine.\n',
+            log('Saving img for alert\n');
+            const interval = setInterval(async () => {
+                // log(`fetching the img for: ${map.code}`);
+                const response = await fetch(closestInter.camera_image);
+                const buffer = await response.buffer();
+                await fs.writeFile(
+                    `./tmp/${map.code}_${Date.now()}.jpg`,
+                    buffer,
+                    (err) => {
+                        if (err) console.error('Err Writing Img:', err);
+                        // else log('finished downloading');
+                    },
                 );
-            }
+                // log(`Write to: ./tmp/${map.code}_${Date.now()}.jpg`);
+            }, 5000);
+
+            setTimeout(() => {
+                // log(`clearing img fetch for: ${map.code}`);
+                clearInterval(interval);
+                const files = fs
+                    .readdirSync('./tmp')
+                    .filter((fn) => fn.includes(map.code))
+                    .map((file) => `./tmp/${file}`);
+                filesToGif(files, gifName);
+            }, 31000);
 
             // generate file name for gif, place that in alert, write / log alert
             // that interval saves an image
