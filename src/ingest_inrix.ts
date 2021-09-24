@@ -41,19 +41,28 @@ let token = '';
 let client = undefined as any;
 
 const refreshToken = async () => {
-    const r = await fetch(tokenURL);
-    const j = await r.json();
-    token = j.result.token;
-    log('New token set');
+    await fetch(tokenURL)
+        .then(async (r) => {
+            const j = await r.json();
+            token = j.result.token;
+            log('New token set');
+        })
+        .catch((err) => log('ERR: Refreshing Token - ' + err));
 };
 
-const fetchInrixData = async () => {
-    const r = await fetch(inrixURL + token);
-    const j = await r.json();
-    const time = j.result?.segmentSpeeds[0]?.timestamp;
-    return j.result?.segmentSpeeds[0]?.segments.map((seg: any) => {
-        return { payload: { ...seg, ingestion: time } };
-    });
+const fetchInrixData = async (): Promise<Array<any>> => {
+    return fetch(inrixURL + token)
+        .then(async (r) => {
+            const j = await r.json();
+            const time = j.result?.segmentSpeeds[0]?.timestamp;
+            return j.result?.segmentSpeeds[0]?.segments.map((seg: any) => {
+                return { payload: { ...seg, ingestion: time } };
+            });
+        })
+        .catch((err) => {
+            log('ERR: Requesting inrix data - ' + err);
+            return [];
+        });
 };
 
 const main = async () => {
@@ -72,12 +81,13 @@ const main = async () => {
     setInterval(async () => {
         if (client) {
             const inrixData = await fetchInrixData();
-            log(`Pushing ${inrixData.length} segments to client`);
-            if (inrixData) {
+            if (inrixData && inrixData.length) {
+                log(`Pushing ${inrixData.length} segments to client`);
                 inrixData.forEach((data: any) => sendJsonToClient(data));
+                log(`Done`);
             }
-            log(`Done`);
         }
+        // }, 2 * 60000); // 2 minutes
     }, 2 * 60000); // 2 minutes
 };
 

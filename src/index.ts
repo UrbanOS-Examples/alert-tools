@@ -24,9 +24,10 @@ Improvements to make
 */
 
 const FUNCTIONAL_CLASS_RANGE = [3, 5];
-const SIG_THRESH = 0.7;
-const CAM_DIST_KM = 10;
-const EXPORT_FILE = 'sep23rd_late_late_test.json';
+const SIG_THRESH = 0.6;
+const CAM_DIST_KM = 0.5;
+const EXPORT_FILE = 'EXPORT_sep_23_noon_EST.json';
+// const EXPORT_FILE = 'delete_me.json';
 let lastAlert = moment();
 let lastInrix = moment();
 
