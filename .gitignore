@@ -4,9 +4,10 @@ src/**/*.map
 coverage
 .DS_Store
 
-gifs/
-
-tmp/
+gifs/*
+!gifs/.gitkeep
+tmp/*
+!tmp/.gitkeep
 
 pkg_dist
 
