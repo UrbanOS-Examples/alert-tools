@@ -7,19 +7,6 @@ This must be started before starting index.ts, and restarted if client
 disconnects and connects again
 */
 
-/* 
-- retrieve initial token
-- set timeout for every 30 min to refresh token
-
-- open local websocket
-
-- every 2 min 120000 (configurable)
-- call inrix endpoint
-- print "pushing x entries to endpoint"
-- iterate through entries received, push each to the websocket
-- print "done pushing x entries to endpoint"
-*/
-
 /*
 Requires 
 export VENDORID=
@@ -76,6 +63,19 @@ const main = async () => {
     wss.on('connection', function connection(ws: any) {
         log('New client connected');
         client = ws;
+    });
+
+    ws.on('close', () => {
+        console.log('------------------------------------');
+        log('\nConnection was closed, please restart the program');
+        console.log('------------------------------------');
+    });
+
+    ws.on('error', (err) => {
+        console.log('------------------------------------');
+        log('There was an error, you should probably restart the program');
+        console.log('\nerror: ', err);
+        console.log('------------------------------------');
     });
 
     setInterval(async () => {

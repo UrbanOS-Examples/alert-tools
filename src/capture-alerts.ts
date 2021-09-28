@@ -222,8 +222,6 @@ ws.on('error', (err) => {
 });
 
 setInterval(() => {
-    // log('\nstill goin');
-    // ping the socket so the connection doesn't die
     ws.ping("i'm still here");
 }, 5000);
 
